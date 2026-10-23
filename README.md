@@ -3,9 +3,9 @@
 An Evangelion-inspired, Cold-War-dossier visual copy of
 [YunKai Ji's algebraic geometry homepage](https://friedrichsan.github.io/).
 
-- Live copy: https://friedrichsan.github.io/eva-homepage/
+- Live copy: https://friedrichsan.github.io/v1-homepage/
 - Original: https://friedrichsan.github.io/
-- Declassified plaintext: https://friedrichsan.github.io/eva-homepage/minimal.html
+- Declassified plaintext: https://friedrichsan.github.io/v1-homepage/minimal.html
 
 The mathematics, notes, and personal content are the same as the original.
 The visual language is the experiment: NERV-style classification chrome,

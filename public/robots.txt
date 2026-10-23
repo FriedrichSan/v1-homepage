@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://friedrichsan.github.io/eva-homepage/sitemap.xml
+Sitemap: https://friedrichsan.github.io/v1-homepage/sitemap.xml
