@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 
 /**
- * A procedural AT-field moon: a slow-turning blue sphere with a
- * latitude/longitude lattice and red nodes. No external artwork is used.
+ * A procedural AT-field moon: a pale, icy sphere with a slow-turning
+ * red lattice and star-shaped nodes. No external artwork is used.
  */
 export function EvaMoon() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -31,162 +31,317 @@ export function EvaMoon() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
-      const R = Math.min(w, h) * 0.365;
+      const R = Math.min(w, h) * 0.405;
       const cx = w * 0.5;
       const cy = h * 0.5;
-      const tilt = 0.17;
+      const tilt = 0.16;
+      // the globe is not upright: its spin axis leans about 18° on screen
+      const axialTilt = 0.38;
+      const ca = Math.cos(axialTilt);
+      const sa = Math.sin(axialTilt);
       const rot = reduced ? 0.4 : time * 0.05;
 
-      // atmospheric halo
-      const halo = ctx.createRadialGradient(cx, cy, R * 0.72, cx, cy, R * 1.62);
-      halo.addColorStop(0, "rgba(87, 230, 255, 0.13)");
-      halo.addColorStop(0.52, "rgba(104, 151, 255, 0.07)");
-      halo.addColorStop(1, "rgba(87, 230, 255, 0)");
-      ctx.fillStyle = halo;
-      ctx.beginPath();
-      ctx.arc(cx, cy, R * 1.62, 0, Math.PI * 2);
-      ctx.fill();
+      const cosR = Math.cos(rot);
+      const sinR = Math.sin(rot);
+
+      const projectPoint = (x: number, y: number, z: number) => {
+        // spin around the local vertical axis
+        const sx = x * cosR + z * sinR;
+        const sz = -x * sinR + z * cosR;
+        const sy = y;
+        // lean that axis on screen
+        const ax = sx * ca - sy * sa;
+        const ay = sx * sa + sy * ca;
+        // mild camera elevation
+        const vy = ay * Math.cos(tilt) - sz * Math.sin(tilt);
+        const vz = ay * Math.sin(tilt) + sz * Math.cos(tilt);
+        return { x: cx + R * ax, y: cy - R * vy, z: vz };
+      };
 
       const project = (lat: number, lon: number) => {
         const phi = (lat * Math.PI) / 180;
-        const lambda = (lon * Math.PI) / 180 + rot;
-        const x = Math.cos(phi) * Math.cos(lambda);
-        const y = Math.sin(phi);
-        const z = Math.cos(phi) * Math.sin(lambda);
-        const yy = y * Math.cos(tilt) - z * Math.sin(tilt);
-        const zz = y * Math.sin(tilt) + z * Math.cos(tilt);
-        return { x: cx + R * x, y: cy - R * yy, z: zz };
+        const lambda = (lon * Math.PI) / 180;
+        return projectPoint(
+          Math.cos(phi) * Math.cos(lambda),
+          Math.sin(phi),
+          Math.cos(phi) * Math.sin(lambda)
+        );
       };
 
-      // the sphere
+      // cold atmospheric halo
+      const halo = ctx.createRadialGradient(cx, cy, R * 0.7, cx, cy, R * 1.55);
+      halo.addColorStop(0, "rgba(158, 232, 255, 0.16)");
+      halo.addColorStop(0.42, "rgba(82, 177, 255, 0.1)");
+      halo.addColorStop(0.74, "rgba(101, 108, 255, 0.055)");
+      halo.addColorStop(1, "rgba(80, 117, 255, 0)");
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * 1.55, 0, Math.PI * 2);
+      ctx.fill();
+
+      // the moon itself
       ctx.save();
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
       ctx.clip();
 
       const body = ctx.createRadialGradient(
-        cx - R * 0.38,
+        cx - R * 0.35,
         cy - R * 0.42,
-        R * 0.08,
+        R * 0.03,
         cx,
         cy,
-        R * 1.15
+        R * 1.12
       );
-      body.addColorStop(0, "rgba(236, 252, 255, 0.97)");
-      body.addColorStop(0.34, "rgba(190, 232, 255, 0.88)");
-      body.addColorStop(0.66, "rgba(92, 153, 218, 0.68)");
-      body.addColorStop(0.88, "rgba(23, 48, 102, 0.54)");
-      body.addColorStop(1, "rgba(4, 9, 24, 0.72)");
+      body.addColorStop(0, "rgba(255, 255, 255, 1)");
+      body.addColorStop(0.2, "rgba(252, 255, 255, 1)");
+      body.addColorStop(0.43, "rgba(238, 253, 255, 0.99)");
+      body.addColorStop(0.62, "rgba(205, 245, 255, 0.97)");
+      body.addColorStop(0.8, "rgba(151, 226, 255, 0.94)");
+      body.addColorStop(0.93, "rgba(72, 152, 216, 0.9)");
+      body.addColorStop(1, "rgba(8, 24, 57, 0.9)");
       ctx.fillStyle = body;
       ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
 
-      // faint surface mottling and craters, fixed to the rotating sphere
-      for (let i = 0; i < 34; i++) {
-        const lat = -70 + seeded(i + 3) * 140;
+      // broad icy patches, fixed to the rotating surface
+      for (let i = 0; i < 72; i++) {
+        const lat = -78 + seeded(i + 3) * 156;
         const lon = seeded(i * 2 + 17) * 360;
         const p = project(lat, lon);
-        if (p.z <= 0.1) continue;
-        const cr = R * (0.015 + seeded(i + 31) * 0.065) * (0.55 + p.z * 0.45);
+        if (p.z <= 0.06) continue;
+        const size = R * (0.025 + seeded(i + 31) * 0.095) * (0.45 + p.z * 0.55);
+        const cloud = ctx.createRadialGradient(
+          p.x - size * 0.2,
+          p.y - size * 0.2,
+          size * 0.04,
+          p.x,
+          p.y,
+          size
+        );
+        cloud.addColorStop(0, `rgba(255,255,255,${0.44 + seeded(i + 5) * 0.34})`);
+        cloud.addColorStop(0.48, `rgba(226,251,255,${0.2 + seeded(i + 9) * 0.22})`);
+        cloud.addColorStop(1, "rgba(140, 220, 255, 0)");
+        ctx.fillStyle = cloud;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, cr, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(31, 94, 164, ${0.035 + seeded(i + 9) * 0.06})`;
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(p.x - cr * 0.25, p.y - cr * 0.28, cr * 0.72, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(235, 250, 255, ${0.05 + seeded(i + 21) * 0.08})`;
+        ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // the lattice
-      ctx.lineCap = "round";
-      ctx.lineWidth = 0.7;
-      ctx.strokeStyle = "rgba(225, 248, 255, 0.27)";
-      for (let lat = -60; lat <= 60; lat += 20) {
-        let started = false;
-        ctx.beginPath();
-        for (let lon = -180; lon <= 180; lon += 4) {
-          const p = project(lat, lon);
-          if (p.z > 0) {
-            if (!started) {
-              ctx.moveTo(p.x, p.y);
-              started = true;
-            } else {
-              ctx.lineTo(p.x, p.y);
-            }
-          } else {
-            started = false;
-          }
-        }
-        ctx.stroke();
-      }
-      for (let lon = -180; lon < 180; lon += 30) {
-        let started = false;
-        ctx.beginPath();
-        for (let lat = -80; lat <= 80; lat += 3) {
-          const p = project(lat, lon);
-          if (p.z > 0) {
-            if (!started) {
-              ctx.moveTo(p.x, p.y);
-              started = true;
-            } else {
-              ctx.lineTo(p.x, p.y);
-            }
-          } else {
-            started = false;
-          }
-        }
-        ctx.stroke();
-      }
-
-      // red AT-field nodes at the visible intersections
-      ctx.shadowColor = "rgba(255, 32, 32, 0.9)";
-      ctx.shadowBlur = 8;
-      for (let lat = -60; lat <= 60; lat += 20) {
-        for (let lon = -180; lon < 180; lon += 30) {
-          const p = project(lat, lon);
-          if (p.z <= 0.13) continue;
-          const fade = Math.min(1, p.z * 1.8);
-          ctx.globalAlpha = fade;
-          ctx.strokeStyle = "rgba(255, 39, 39, 0.95)";
-          ctx.lineWidth = 1.1;
-          const s = 3.5 + p.z * 2.2;
+      // large irregular ice patches, like the bright maria in the reference
+      for (let i = 0; i < 16; i++) {
+        const lat = -68 + seeded(i + 211) * 136;
+        const lon = seeded(i * 5 + 53) * 360;
+        const p = project(lat, lon);
+        if (p.z <= 0.13) continue;
+        const size = R * (0.045 + seeded(i + 17) * 0.075) * (0.55 + p.z * 0.45);
+        for (let j = 0; j < 4; j++) {
+          const ox = (seeded(i * 7 + j + 91) - 0.5) * size * 0.7;
+          const oy = (seeded(i * 11 + j + 37) - 0.5) * size * 0.7;
+          const rr = size * (0.42 + seeded(i + j + 19) * 0.45);
+          const ice = ctx.createRadialGradient(
+            p.x + ox - rr * 0.2,
+            p.y + oy - rr * 0.25,
+            0,
+            p.x + ox,
+            p.y + oy,
+            rr
+          );
+          ice.addColorStop(0, "rgba(255, 255, 255, 0.68)");
+          ice.addColorStop(0.55, "rgba(228, 252, 255, 0.34)");
+          ice.addColorStop(1, "rgba(181, 235, 255, 0)");
+          ctx.fillStyle = ice;
           ctx.beginPath();
-          ctx.moveTo(p.x - s, p.y);
-          ctx.lineTo(p.x + s, p.y);
-          ctx.moveTo(p.x, p.y - s);
-          ctx.lineTo(p.x, p.y + s);
-          ctx.stroke();
-          ctx.fillStyle = "rgba(255, 52, 52, 0.9)";
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, 1.15, 0, Math.PI * 2);
+          ctx.arc(p.x + ox, p.y + oy, rr, 0, Math.PI * 2);
           ctx.fill();
         }
       }
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
 
-      // dark limb and red rim
-      const limb = ctx.createRadialGradient(cx, cy, R * 0.78, cx, cy, R);
-      limb.addColorStop(0, "rgba(2, 7, 18, 0)");
-      limb.addColorStop(1, "rgba(2, 7, 18, 0.44)");
+      // a few brighter craters with a cool rim
+      for (let i = 0; i < 18; i++) {
+        const lat = -65 + seeded(i + 101) * 130;
+        const lon = seeded(i * 3 + 41) * 360;
+        const p = project(lat, lon);
+        if (p.z <= 0.12) continue;
+        const size = R * (0.022 + seeded(i + 13) * 0.055) * (0.55 + p.z * 0.45);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(43, 116, 179, 0.1)";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(p.x - size * 0.2, p.y - size * 0.24, size * 0.82, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, size, Math.PI * 0.92, Math.PI * 1.82);
+        ctx.strokeStyle = "rgba(235, 253, 255, 0.22)";
+        ctx.lineWidth = 0.9;
+        ctx.stroke();
+      }
+
+      // central white flare and fine ice-grain
+      const flareX = cx - R * 0.13;
+      const flareY = cy - R * 0.2;
+      const flare = ctx.createRadialGradient(flareX, flareY, 0, flareX, flareY, R * 0.34);
+      flare.addColorStop(0, "rgba(255, 255, 255, 0.92)");
+      flare.addColorStop(0.14, "rgba(255, 255, 255, 0.6)");
+      flare.addColorStop(0.45, "rgba(211, 247, 255, 0.16)");
+      flare.addColorStop(1, "rgba(155, 230, 255, 0)");
+      ctx.fillStyle = flare;
+      ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+
+      for (let i = 0; i < 260; i++) {
+        const a = seeded(i + 301) * Math.PI * 2;
+        const rr = Math.sqrt(seeded(i + 71)) * R * 0.97;
+        const x = cx + Math.cos(a) * rr;
+        const y = cy + Math.sin(a) * rr;
+        ctx.fillStyle = i % 3 === 0 ? "rgba(255,255,255,0.16)" : "rgba(84,161,223,0.12)";
+        ctx.fillRect(x, y, 1, 1);
+      }
+
+      // A cube-sphere grid keeps the cells broad and square-ish, instead of
+      // converging to visible poles like a latitude/longitude wireframe.
+      const faces: { o: [number, number, number]; u: [number, number, number]; v: [number, number, number] }[] = [
+        { o: [-1, -1, 1], u: [2, 0, 0], v: [0, 2, 0] },
+        { o: [1, -1, -1], u: [-2, 0, 0], v: [0, 2, 0] },
+        { o: [1, -1, 1], u: [0, 0, -2], v: [0, 2, 0] },
+        { o: [-1, -1, -1], u: [0, 0, 2], v: [0, 2, 0] },
+        { o: [-1, 1, 1], u: [2, 0, 0], v: [0, 0, -2] },
+        { o: [-1, -1, -1], u: [2, 0, 0], v: [0, 0, 2] },
+      ];
+      const N = 3;
+      const facePoint = (f: (typeof faces)[number], a: number, b: number) => {
+        const x = f.o[0] + f.u[0] * a + f.v[0] * b;
+        const y = f.o[1] + f.u[1] * a + f.v[1] * b;
+        const z = f.o[2] + f.u[2] * a + f.v[2] * b;
+        const len = Math.hypot(x, y, z) || 1;
+        return projectPoint(x / len, y / len, z / len);
+      };
+
+      const strokeGrid = (path: Path2D) => {
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.shadowColor = "rgba(255, 15, 39, 0.78)";
+        ctx.shadowBlur = 13;
+        ctx.strokeStyle = "rgba(129, 0, 27, 0.9)";
+        ctx.lineWidth = 4.4;
+        ctx.stroke(path);
+        ctx.shadowBlur = 4;
+        ctx.strokeStyle = "rgba(255, 47, 65, 0.98)";
+        ctx.lineWidth = 2.05;
+        ctx.stroke(path);
+        ctx.restore();
+      };
+
+      const drawGridLine = (points: { x: number; y: number; z: number }[]) => {
+        const path = new Path2D();
+        let started = false;
+        for (const p of points) {
+          if (p.z > 0) {
+            if (!started) { path.moveTo(p.x, p.y); started = true; }
+            else path.lineTo(p.x, p.y);
+          } else started = false;
+        }
+        strokeGrid(path);
+      };
+
+      for (const f of faces) {
+        for (let j = 0; j <= N; j++) {
+          drawGridLine(
+            Array.from({ length: N + 1 }, (_, i) => facePoint(f, i / N, j / N))
+          );
+        }
+        for (let i = 0; i <= N; i++) {
+          drawGridLine(
+            Array.from({ length: N + 1 }, (_, j) => facePoint(f, i / N, j / N))
+          );
+        }
+      }
+
+      // Red star nodes at the lattice intersections.
+      const node = (x: number, y: number, alpha: number) => {
+        const outer = 7.0 + alpha * 5.5;
+        const inner = outer * 0.22;
+        ctx.save();
+        ctx.globalAlpha = 0.72 + alpha * 0.28;
+        ctx.shadowColor = "rgba(255, 20, 35, 0.95)";
+        ctx.shadowBlur = 16;
+        ctx.fillStyle = "rgba(255, 40, 55, 0.99)";
+        ctx.strokeStyle = "rgba(255, 34, 50, 0.95)";
+        ctx.lineWidth = 2.1;
+        ctx.lineCap = "round";
+        for (let k = 0; k < 4; k++) {
+          const a = Math.PI / 4 + (k * Math.PI) / 2;
+          ctx.beginPath();
+          ctx.moveTo(x + Math.cos(a) * outer * 0.2, y + Math.sin(a) * outer * 0.2);
+          ctx.lineTo(x + Math.cos(a) * outer * 1.6, y + Math.sin(a) * outer * 1.6);
+          ctx.stroke();
+        }
+        ctx.shadowBlur = 9;
+        ctx.beginPath();
+        for (let k = 0; k < 8; k++) {
+          const a = -Math.PI / 2 + (k * Math.PI) / 4;
+          const r = k % 2 === 0 ? outer : inner;
+          const px = x + Math.cos(a) * r;
+          const py = y + Math.sin(a) * r;
+          if (k === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "rgba(255, 230, 230, 0.7)";
+        ctx.beginPath();
+        ctx.arc(x, y, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      };
+
+      const seenNodes = new Set<string>();
+      for (const f of faces) {
+        for (let i = 0; i <= N; i++) {
+          for (let j = 0; j <= N; j++) {
+            const p = facePoint(f, i / N, j / N);
+            if (p.z <= 0.12) continue;
+            const key = `${Math.round(p.x / 2)}:${Math.round(p.y / 2)}`;
+            if (seenNodes.has(key)) continue;
+            seenNodes.add(key);
+            node(p.x, p.y, p.z);
+          }
+        }
+      }
+
+      // shadowed limb and hot rim
+      const limb = ctx.createRadialGradient(cx, cy, R * 0.76, cx, cy, R);
+      limb.addColorStop(0, "rgba(3, 10, 25, 0)");
+      limb.addColorStop(0.82, "rgba(6, 20, 48, 0.08)");
+      limb.addColorStop(1, "rgba(2, 7, 18, 0.48)");
       ctx.fillStyle = limb;
       ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
-      ctx.strokeStyle = "rgba(255, 46, 46, 0.22)";
-      ctx.lineWidth = 1;
+
+      ctx.strokeStyle = "rgba(186, 245, 255, 0.55)";
+      ctx.lineWidth = 1.1;
       ctx.beginPath();
-      ctx.arc(cx, cy, R - 0.5, 0, Math.PI * 2);
+      ctx.arc(cx, cy, R - 0.6, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.strokeStyle = "rgba(255, 35, 50, 0.55)";
+      ctx.lineWidth = 1.7;
+      ctx.shadowColor = "rgba(255, 25, 40, 0.7)";
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R - 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
       ctx.restore();
 
-      // a few cold stars around the halo
-      ctx.fillStyle = "rgba(225, 245, 255, 0.5)";
-      for (let i = 0; i < 18; i++) {
+      // sparse cold stars
+      ctx.fillStyle = "rgba(225, 245, 255, 0.65)";
+      for (let i = 0; i < 22; i++) {
         const a = seeded(i + 80) * Math.PI * 2;
-        const rr = R * (1.15 + seeded(i + 91) * 0.48);
+        const rr = R * (1.12 + seeded(i + 91) * 0.38);
         const x = cx + Math.cos(a) * rr;
         const y = cy + Math.sin(a) * rr;
         if (x < 0 || y < 0 || x > w || y > h) continue;
-        ctx.globalAlpha = 0.12 + seeded(i + 70) * 0.35;
+        ctx.globalAlpha = 0.1 + seeded(i + 70) * 0.32;
         ctx.fillRect(x, y, 1, 1);
       }
       ctx.globalAlpha = 1;
