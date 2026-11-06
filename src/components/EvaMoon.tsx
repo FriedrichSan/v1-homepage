@@ -128,7 +128,7 @@ export function EvaMoon() {
       }
 
       // large irregular ice patches, like the bright maria in the reference
-      for (let i = 0; i < 16; i++) {
+      for (let i = 0; i < 24; i++) {
         const lat = -68 + seeded(i + 211) * 136;
         const lon = seeded(i * 5 + 53) * 360;
         const p = project(lat, lon);
@@ -146,8 +146,9 @@ export function EvaMoon() {
             p.y + oy,
             rr
           );
-          ice.addColorStop(0, "rgba(255, 255, 255, 0.68)");
-          ice.addColorStop(0.55, "rgba(228, 252, 255, 0.34)");
+          ice.addColorStop(0, "rgba(255, 255, 255, 0.9)");
+          ice.addColorStop(0.38, "rgba(245, 255, 255, 0.62)");
+          ice.addColorStop(0.7, "rgba(213, 247, 255, 0.24)");
           ice.addColorStop(1, "rgba(181, 235, 255, 0)");
           ctx.fillStyle = ice;
           ctx.beginPath();
@@ -189,13 +190,40 @@ export function EvaMoon() {
       ctx.fillStyle = flare;
       ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
 
-      for (let i = 0; i < 260; i++) {
+      for (let i = 0; i < 900; i++) {
         const a = seeded(i + 301) * Math.PI * 2;
         const rr = Math.sqrt(seeded(i + 71)) * R * 0.97;
         const x = cx + Math.cos(a) * rr;
         const y = cy + Math.sin(a) * rr;
-        ctx.fillStyle = i % 3 === 0 ? "rgba(255,255,255,0.16)" : "rgba(84,161,223,0.12)";
-        ctx.fillRect(x, y, 1, 1);
+        const size = i % 11 === 0 ? 1.6 : 0.8;
+        ctx.fillStyle =
+          i % 3 === 0
+            ? "rgba(255,255,255,0.2)"
+            : i % 5 === 0
+              ? "rgba(68,148,214,0.2)"
+              : "rgba(178,230,255,0.11)";
+        ctx.fillRect(x, y, size, size);
+      }
+
+      // a few icy scratches
+      for (let i = 0; i < 26; i++) {
+        const a = seeded(i + 451) * Math.PI * 2;
+        const rr = Math.sqrt(seeded(i + 61)) * R * 0.78;
+        const x = cx + Math.cos(a) * rr;
+        const y = cy + Math.sin(a) * rr;
+        const len = R * (0.025 + seeded(i + 27) * 0.06);
+        const dir = seeded(i + 111) * Math.PI;
+        ctx.strokeStyle = `rgba(255,255,255,${0.04 + seeded(i + 23) * 0.08})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(
+          x + Math.cos(dir + 0.4) * len * 0.5,
+          y + Math.sin(dir + 0.4) * len * 0.5,
+          x + Math.cos(dir) * len,
+          y + Math.sin(dir) * len
+        );
+        ctx.stroke();
       }
 
       // A cube-sphere grid keeps the cells broad and square-ish, instead of
