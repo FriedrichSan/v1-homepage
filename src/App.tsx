@@ -5,7 +5,6 @@ import { BlowupScene } from "@/scenes/BlowupScene";
 import { CircleScene } from "@/scenes/CircleScene";
 import { FamilyScene } from "@/scenes/FamilyScene";
 import { Cursor } from "@/components/Cursor";
-import { EvaMoon } from "@/components/EvaMoon";
 
 type Scene = "node" | "blowup" | "circle" | "family";
 
@@ -68,8 +67,6 @@ function App() {
           </a>
         </div>
       </header>
-
-      {scene === "node" && <EvaMoon />}
 
       {scene !== "family" && (
         <>
