@@ -226,42 +226,15 @@ export function EvaMoon() {
         ctx.stroke();
       }
 
-      // A cube-sphere grid keeps the cells broad and square-ish, instead of
-      // converging to visible poles like a latitude/longitude wireframe.
-      const faces: { o: [number, number, number]; u: [number, number, number]; v: [number, number, number] }[] = [
-        { o: [-1, -1, 1], u: [2, 0, 0], v: [0, 2, 0] },
-        { o: [1, -1, -1], u: [-2, 0, 0], v: [0, 2, 0] },
-        { o: [1, -1, 1], u: [0, 0, -2], v: [0, 2, 0] },
-        { o: [-1, -1, -1], u: [0, 0, 2], v: [0, 2, 0] },
-        { o: [-1, 1, 1], u: [2, 0, 0], v: [0, 0, -2] },
-        { o: [-1, -1, -1], u: [2, 0, 0], v: [0, 0, 2] },
-      ];
-      const N = 3;
-      const facePoint = (f: (typeof faces)[number], a: number, b: number) => {
-        const x = f.o[0] + f.u[0] * a + f.v[0] * b;
-        const y = f.o[1] + f.u[1] * a + f.v[1] * b;
-        const z = f.o[2] + f.u[2] * a + f.v[2] * b;
-        const len = Math.hypot(x, y, z) || 1;
-        return projectPoint(x / len, y / len, z / len);
+      // A hand-drawn spherical lattice, deliberately a little loose.
+      const gridPoint = (lat: number, lon: number) => {
+        const p = project(lat, lon);
+        const jx = Math.sin((lon + 37) * 0.12 + lat * 0.63) * 0.35;
+        const jy = Math.cos((lon - 11) * 0.15 + lat * 0.71) * 0.28;
+        return { x: p.x + jx, y: p.y + jy, z: p.z };
       };
 
-      const strokeGrid = (path: Path2D) => {
-        ctx.save();
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.shadowColor = "rgba(255, 15, 39, 0.78)";
-        ctx.shadowBlur = 13;
-        ctx.strokeStyle = "rgba(129, 0, 27, 0.9)";
-        ctx.lineWidth = 4.4;
-        ctx.stroke(path);
-        ctx.shadowBlur = 4;
-        ctx.strokeStyle = "rgba(255, 47, 65, 0.98)";
-        ctx.lineWidth = 2.05;
-        ctx.stroke(path);
-        ctx.restore();
-      };
-
-      const drawGridLine = (points: { x: number; y: number; z: number }[]) => {
+      const drawGrid = (points: { x: number; y: number; z: number }[]) => {
         const path = new Path2D();
         let started = false;
         for (const p of points) {
@@ -270,42 +243,43 @@ export function EvaMoon() {
             else path.lineTo(p.x, p.y);
           } else started = false;
         }
-        strokeGrid(path);
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.shadowColor = "rgba(100, 0, 20, 0.22)";
+        ctx.shadowBlur = 2;
+        ctx.strokeStyle = "rgba(112, 0, 25, 0.8)";
+        ctx.lineWidth = 4.8;
+        ctx.stroke(path);
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(206, 32, 52, 0.96)";
+        ctx.lineWidth = 2.2;
+        ctx.stroke(path);
+        ctx.strokeStyle = "rgba(255, 135, 145, 0.24)";
+        ctx.lineWidth = 0.55;
+        ctx.stroke(path);
+        ctx.restore();
       };
 
-      for (const f of faces) {
-        for (let j = 0; j <= N; j++) {
-          drawGridLine(
-            Array.from({ length: N + 1 }, (_, i) => facePoint(f, i / N, j / N))
-          );
-        }
-        for (let i = 0; i <= N; i++) {
-          drawGridLine(
-            Array.from({ length: N + 1 }, (_, j) => facePoint(f, i / N, j / N))
-          );
-        }
+      for (let lat = -60; lat <= 60; lat += 30) {
+        drawGrid(
+          Array.from({ length: 145 }, (_, i) => gridPoint(lat, -180 + i * 2.5))
+        );
+      }
+      for (let lon = -180; lon < 180; lon += 360 / 14) {
+        drawGrid(
+          Array.from({ length: 83 }, (_, i) => gridPoint(-82 + i * 2, lon))
+        );
       }
 
-      // Red star nodes at the lattice intersections.
       const node = (x: number, y: number, alpha: number) => {
-        const outer = 7.0 + alpha * 5.5;
-        const inner = outer * 0.22;
+        const outer = 7.6 + alpha * 5.6;
+        const inner = outer * 0.2;
         ctx.save();
-        ctx.globalAlpha = 0.72 + alpha * 0.28;
-        ctx.shadowColor = "rgba(255, 20, 35, 0.95)";
-        ctx.shadowBlur = 16;
-        ctx.fillStyle = "rgba(255, 40, 55, 0.99)";
-        ctx.strokeStyle = "rgba(255, 34, 50, 0.95)";
-        ctx.lineWidth = 2.1;
-        ctx.lineCap = "round";
-        for (let k = 0; k < 4; k++) {
-          const a = Math.PI / 4 + (k * Math.PI) / 2;
-          ctx.beginPath();
-          ctx.moveTo(x + Math.cos(a) * outer * 0.2, y + Math.sin(a) * outer * 0.2);
-          ctx.lineTo(x + Math.cos(a) * outer * 1.6, y + Math.sin(a) * outer * 1.6);
-          ctx.stroke();
-        }
-        ctx.shadowBlur = 9;
+        ctx.globalAlpha = 0.68 + alpha * 0.32;
+        ctx.shadowColor = "rgba(112, 0, 22, 0.28)";
+        ctx.shadowBlur = 4;
+        ctx.fillStyle = "rgba(200, 30, 48, 0.98)";
         ctx.beginPath();
         for (let k = 0; k < 8; k++) {
           const a = -Math.PI / 2 + (k * Math.PI) / 4;
@@ -317,24 +291,22 @@ export function EvaMoon() {
         }
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = "rgba(255, 230, 230, 0.7)";
-        ctx.beginPath();
-        ctx.arc(x, y, 1.3, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.strokeStyle = "rgba(123, 0, 23, 0.8)";
+        ctx.lineWidth = 1.2;
+        for (let k = 0; k < 4; k++) {
+          const a = Math.PI / 4 + (k * Math.PI) / 2;
+          ctx.beginPath();
+          ctx.moveTo(x + Math.cos(a) * outer * 0.18, y + Math.sin(a) * outer * 0.18);
+          ctx.lineTo(x + Math.cos(a) * outer * 1.55, y + Math.sin(a) * outer * 1.55);
+          ctx.stroke();
+        }
         ctx.restore();
       };
 
-      const seenNodes = new Set<string>();
-      for (const f of faces) {
-        for (let i = 0; i <= N; i++) {
-          for (let j = 0; j <= N; j++) {
-            const p = facePoint(f, i / N, j / N);
-            if (p.z <= 0.12) continue;
-            const key = `${Math.round(p.x / 2)}:${Math.round(p.y / 2)}`;
-            if (seenNodes.has(key)) continue;
-            seenNodes.add(key);
-            node(p.x, p.y, p.z);
-          }
+      for (let lat = -60; lat <= 60; lat += 30) {
+        for (let lon = -180; lon < 180; lon += 360 / 14) {
+          const p = gridPoint(lat, lon);
+          if (p.z > 0.12) node(p.x, p.y, p.z);
         }
       }
 
